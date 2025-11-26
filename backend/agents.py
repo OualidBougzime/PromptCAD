@@ -7,22 +7,22 @@ log = logging.getLogger("cadamx.agents")
 
 
 class AnalystAgent:
-    """Détecte le type d'application et extrait les paramètres"""
-    
+    """Detects application type and extracts parameters"""
+
     APPLICATION_KEYWORDS = {
         'splint': ['splint', 'orthosis', 'orthèse', 'brace', 'hand', 'wrist', 'forearm', 'finger'],
-        'stent': ['stent', 'vascular', 'serpentine', 'expandable'],  # 🔥 Restreint - pas de 'ring', 'strut', 'helical'
-        'facade_pyramid': ['pyramid facade', 'hexagonal pyramid', 'triangle pyramid', 'pyramidal'],  # 🔥 Retiré 'hub' générique
-        'honeycomb': ['honeycomb panel', 'alveolar', 'hexagonal cells', 'hex panel', 'cellular panel'],  # 🔥 Plus spécifique
+        'stent': ['stent', 'vascular', 'serpentine', 'expandable'],  # Restricted - no 'ring', 'strut', 'helical'
+        'facade_pyramid': ['pyramid facade', 'hexagonal pyramid', 'triangle pyramid', 'pyramidal'],  # Removed generic 'hub'
+        'honeycomb': ['honeycomb panel', 'alveolar', 'hexagonal cells', 'hex panel', 'cellular panel'],  # More specific
         'louvre_wall': ['louvre', 'louver', 'slat', 'diagonal', 'pavilion', 'lattice wall'],
         'sine_wave_fins': ['sine', 'wave', 'fins', 'undulating', 'ribbed', 'zahner'],
         'lattice': ['lattice', 'truss', 'cellular', 'gyroid', 'diamond', 'cubic', 'octet', 'kelvin'],
-        'gripper': ['gripper', 'surgical gripper', 'medical gripper'],  # 🔥 Très restreint - pas de 'arm', 'clamp', 'holder' génériques
-        'heatsink': ['heatsink', 'heat sink', 'cooling fins', 'thermal dissipator', 'radiator']  # 🔥 Plus spécifique
+        'gripper': ['gripper', 'surgical gripper', 'medical gripper'],  # Very restricted - no generic 'arm', 'clamp', 'holder'
+        'heatsink': ['heatsink', 'heat sink', 'cooling fins', 'thermal dissipator', 'radiator']  # More specific
     }
     
     async def analyze(self, prompt: str) -> Dict[str, Any]:
-        """Analyse et détecte le type d'application + paramètres"""
+        """Analyzes and detects application type + parameters"""
         p = prompt.lower()
 
         app_type = self._detect_application_type(p)
@@ -47,29 +47,29 @@ class AnalystAgent:
         elif app_type == 'heatsink':
             return self._analyze_heatsink(prompt)
         elif app_type == 'unknown':
-            # Type inconnu → va utiliser Chain-of-Thought
+            # Unknown type → will use Chain-of-Thought
             return {
                 "type": "unknown",
                 "parameters": {},
                 "raw_prompt": prompt
             }
         else:
-            # Fallback (ne devrait jamais arriver)
+            # Fallback (should never happen)
             return self._analyze_splint(prompt)
 
     def _analyze_honeycomb(self, prompt: str) -> Dict[str, Any]:
-        """Analyse pour honeycomb panel (panneau alvéolaire hexagonal)"""
+        """Analysis for honeycomb panel (hexagonal honeycomb panel)"""
         params = {
-            # Panneau
+            # Panel
             'panel_width': self._find_number(prompt, r'(?:panel\s+)?width\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 300.0),
             'panel_height': self._find_number(prompt, r'(?:panel\s+)?height\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 380.0),
             'panel_thickness': self._find_number(prompt, r'(?:panel\s+)?thickness\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 40.0),
-            
-            # Cellules hexagonales
+
+            # Hexagonal cells
             'cell_size': self._find_number(prompt, r'cell\s+size\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 12.0),
             'wall_thickness': self._find_number(prompt, r'wall\s+thickness\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 2.2),
             'cell_depth': self._find_number(prompt, r'cell\s+depth\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 40.0),
-            
+
             # Options
             'corner_fillet': self._find_number(prompt, r'corner\s+fillet\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 0.0),
             'full_depth': 'full depth' in prompt.lower() or 'through' in prompt.lower(),
@@ -84,7 +84,7 @@ class AnalystAgent:
         }
     
     def _detect_application_type(self, prompt: str) -> str:
-        """Détecte le type d'application basé sur les mots-clés avec détection plus stricte"""
+        """Detects application type based on keywords with stricter detection"""
         scores = {app: 0 for app in self.APPLICATION_KEYWORDS}
 
         for app_type, keywords in self.APPLICATION_KEYWORDS.items():
@@ -92,39 +92,39 @@ class AnalystAgent:
                 if keyword in prompt:
                     scores[app_type] += 1
 
-        # Règles strictes de détection (par ordre de priorité)
+        # Strict detection rules (by priority order)
 
-        # 1. HEATSINK - Très spécifique
+        # 1. HEATSINK - Very specific
         if 'heatsink' in prompt or 'heat sink' in prompt:
             return 'heatsink'
 
-        # 2. LOUVRE WALL - AVANT GRIPPER !
+        # 2. LOUVRE WALL - BEFORE GRIPPER!
         if 'louvre' in prompt or 'louver' in prompt or 'pavilion' in prompt:
             return 'louvre_wall'
-        
-        # 3. GRIPPER - Requiert le mot exact "gripper"
+
+        # 3. GRIPPER - Requires exact word "gripper"
         if 'gripper' in prompt:
             return 'gripper'
 
-        # 4. STENT - Requiert au moins 2 mots-clés spécifiques
+        # 4. STENT - Requires at least 2 specific keywords
         if 'stent' in prompt and ('serpentine' in prompt or 'vascular' in prompt or 'expandable' in prompt):
             return 'stent'
 
-        # 5. HONEYCOMB PANEL - Requiert "honeycomb" + contexte
+        # 5. HONEYCOMB PANEL - Requires "honeycomb" + context
         if ('honeycomb panel' in prompt or 'alveolar' in prompt or
             'hexagonal cells' in prompt or 'cellular panel' in prompt or
             ('honeycomb' in prompt and ('panel' in prompt or 'cell' in prompt))):
             return 'honeycomb'
 
-        # 6. PYRAMID FACADE - Requiert "pyramid" explicite
+        # 6. PYRAMID FACADE - Requires explicit "pyramid"
         if 'pyramid facade' in prompt or 'hexagonal pyramid' in prompt or 'pyramidal' in prompt:
             return 'facade_pyramid'
 
-        # 7. SINE WAVE FINS - Requiert combinaison "sine" ou "wave" + "fins"
+        # 7. SINE WAVE FINS - Requires combination "sine" or "wave" + "fins"
         if (('sine' in prompt or 'wave' in prompt) and 'fin' in prompt) or 'zahner' in prompt:
             return 'sine_wave_fins'
 
-        # 8. LATTICE - Requiert mots-clés spécifiques de structures lattice
+        # 8. LATTICE - Requires specific lattice structure keywords
         lattice_words = ['lattice', 'cubic cell', 'diamond cell', 'gyroid', 'octet', 'kelvin', 'bcc', 'fcc']
         if any(word in prompt for word in lattice_words):
             return 'lattice'
@@ -132,7 +132,7 @@ class AnalystAgent:
         # 9. Score-based detection with higher threshold
         detected = max(scores, key=scores.get)
 
-        # Requiert au moins 2 matches pour considérer un template valide
+        # Requires at least 2 matches to consider a valid template
         if scores[detected] < 2:
             log.info("🧠 No strong template match (score < 2) → routing to Chain-of-Thought")
             return 'unknown'
@@ -141,22 +141,22 @@ class AnalystAgent:
         return detected
 
     def _analyze_heatsink(self, prompt: str) -> Dict[str, Any]:
-        """Analyse pour heatsink (dissipateur thermique)"""
+        """Analysis for heatsink (thermal dissipator)"""
         params = {
-            # Plaque
+            # Plate
             'plate_w': self._find_number(prompt, r'plate.*?width\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 40.0),
             'plate_h': self._find_number(prompt, r'plate.*?height\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 40.0),
             'plate_t': self._find_number(prompt, r'plate.*?thickness\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 3.0),
-            
-            # Tuyau/tube
+
+            # Tube/pipe
             'tube_od': self._find_number(prompt, r'tube.*?(?:outer\s+)?diameter\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 42.0),
             'tube_len': self._find_number(prompt, r'tube.*?length\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 10.0),
-            
-            # Barres/ailettes
+
+            # Bars/fins
             'bar_len': self._find_number(prompt, r'(?:bar|fin).*?length\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 22.0),
             'bar_angle': self._find_number(prompt, r'(?:bar|fin).*?angle\s*:?\s*(\d+(?:\.\d+)?)\s*(?:deg|°)', 20.0),
-            
-            # Trous
+
+            # Holes
             'hole_d': self._find_number(prompt, r'hole.*?diameter\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 3.3),
             'hole_pitch': self._find_number(prompt, r'hole.*?pitch\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 32.0),
         }
@@ -170,27 +170,27 @@ class AnalystAgent:
         }
 
     def _analyze_louvre_wall(self, prompt: str) -> Dict[str, Any]:
-        """Analyse pour louvre wall (pavilion avec lattes diagonales)"""
+        """Analysis for louvre wall (pavilion with diagonal slats)"""
         params = {
             # Triangle
             'width': self._find_number(prompt, r'width\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 280.0),
             'height': self._find_number(prompt, r'height\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 260.0),
             'thickness': self._find_number(prompt, r'thickness\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 40.0),
             'corner_fillet': self._find_number(prompt, r'(?:corner|fillet)\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 3.0),
-            
-            # Louvres (nappe 1)
+
+            # Louvres (layer 1)
             'angle_deg': self._find_number(prompt, r'(?:angle|slat angle)\s*:?\s*(\d+(?:\.\d+)?)\s*(?:deg|°)', 35.0),
             'pitch': self._find_number(prompt, r'(?:pitch|spacing)\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 12.0),
             'slat_width': self._find_number(prompt, r'slat\s+width\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 8.0),
             'slat_depth': self._find_number(prompt, r'slat\s+depth\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 12.0),
             'end_radius': self._find_number(prompt, r'(?:end|edge)\s+radius\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 3.0),
             'layer1_z': self._find_number(prompt, r'layer\s+1\s+z\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 6.0),
-            
-            # Nappe 2 (optionnelle)
+
+            # Layer 2 (optional)
             'layer2_enabled': 'layer 2' in prompt.lower() or 'crossed' in prompt.lower() or 'double' in prompt.lower(),
             'layer2_angle': self._find_number(prompt, r'layer\s+2\s+angle\s*:?\s*(\d+(?:\.\d+)?)\s*(?:deg|°)', 55.0),
             'layer2_z_offset': self._find_number(prompt, r'layer\s+2\s+z\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 0.0),
-            
+
             # Options
             'boolean_mode': 'intersect' if 'intersect' in prompt.lower() else 'union',
             'same_layer': 'same layer' in prompt.lower() or 'same z' in prompt.lower(),
@@ -206,21 +206,21 @@ class AnalystAgent:
         }
 
     def _analyze_sine_wave_fins(self, prompt: str) -> Dict[str, Any]:
-        """Analyse pour sine wave fins (façade ondulée avec ailettes)"""
+        """Analysis for sine wave fins (wavy facade with fins)"""
         params = {
-            # Panneau
+            # Panel
             'panel_length': self._find_number(prompt, r'(?:panel\s+)?(?:length|width)\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 420.0),
             'panel_height': self._find_number(prompt, r'(?:panel\s+)?height\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 180.0),
             'depth': self._find_number(prompt, r'depth\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 140.0),
-            
-            # Ailettes
+
+            # Fins
             'n_fins': int(self._find_number(prompt, r'(\d+)\s+(?:fins|ribs|blades)', 34)),
             'fin_thickness': self._find_number(prompt, r'fin\s+thickness\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 3.0),
-            
-            # Sinusoïde
+
+            # Sinusoid
             'amplitude': self._find_number(prompt, r'amplitude\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 40.0),
             'period_ratio': self._find_number(prompt, r'period\s+ratio\s*:?\s*(\d+(?:\.\d+)?)', 0.9),
-            
+
             # Base
             'base_thickness': self._find_number(prompt, r'base\s+thickness\s*:?\s*(\d+(?:\.\d+)?)\s*mm', 6.0),
         }
@@ -234,7 +234,7 @@ class AnalystAgent:
         }
     
     def _analyze_facade_pyramid(self, prompt: str) -> Dict[str, Any]:
-        """Analyse pour facade avec pyramides (ANCIENNE VERSION)"""
+        """Analysis for facade with pyramids (OLD VERSION)"""
         p = prompt.lower()
         
         params = {
@@ -255,10 +255,10 @@ class AnalystAgent:
         }
     
     def _analyze_lattice(self, prompt: str) -> Dict[str, Any]:
-        """Analyse pour lattice structures"""
+        """Analysis for lattice structures"""
         p = prompt.lower()
-        
-        # Type de cellule
+
+        # Cell type
         cell_type = 'cubic'
         cell_types = ['cubic', 'diamond', 'gyroid', 'octet', 'kelvin', 'bcc', 'fcc']
         for ct in cell_types:
@@ -284,10 +284,10 @@ class AnalystAgent:
         }
     
     def _analyze_facade_parametric(self, prompt: str) -> Dict[str, Any]:
-        """Analyse pour facade parametrique (NOUVELLE VERSION)"""
+        """Analysis for parametric facade (NEW VERSION)"""
         p = prompt.lower()
-        
-        # Type de pattern
+
+        # Pattern type
         pattern_type = 'wavy'
         patterns = ['wavy', 'hexagonal', 'triangular', 'fins', 'louvers', 'diamond', 'scales']
         for pt in patterns:
@@ -315,7 +315,7 @@ class AnalystAgent:
         }
     
     def _analyze_splint(self, prompt: str) -> Dict[str, Any]:
-        """Analyse pour splint/orthèse"""
+        """Analysis for splint/orthosis"""
         p = prompt.lower()
         sections = self._extract_sections(prompt)
         
@@ -593,7 +593,7 @@ class ValidatorAgent:
         from pathlib import Path
         import time
 
-        # Fonction no-op pour show_object (utilisée par CQ-Editor)
+        # No-op function for show_object (used by CQ-Editor)
         def show_object(obj, name=None, options=None):
             """Dummy function - show_object is only for CQ-Editor"""
             pass
@@ -617,8 +617,8 @@ class ValidatorAgent:
 
             time.sleep(0.1)
 
-            # TOUJOURS chercher le fichier .stl le plus récent (pas seulement generated_*.stl)
-            # Cela corrige le bug où un vieux fichier était retourné au lieu du nouveau
+            # ALWAYS search for the most recent .stl file (not just generated_*.stl)
+            # This fixes the bug where an old file was returned instead of the new one
             stl_files = sorted(output_dir.glob("*.stl"), key=lambda p: p.stat().st_mtime, reverse=True)
             stl_path = str(stl_files[0].absolute()) if stl_files else None
             

@@ -1,79 +1,79 @@
 # PromptToSTL
 
-Génération de modèles 3D (STL/STEP) à partir de descriptions en langage naturel. Le système utilise une architecture multi-agent avec des LLMs locaux (Ollama) pour transformer du texte en code CAD exécutable.
+Generate 3D models (STL/STEP) from natural language descriptions. The system uses a multi-agent architecture with local LLMs (Ollama) to transform text into executable CAD code.
 
-## Fonctionnalités
+## Features
 
-### Templates Optimisés (8 types)
-Génération ultra-rapide (~2s) pour les types courants :
-- **Médical** : splints (orthèses), stents cardiovasculaires
-- **Mécanique** : dissipateurs thermiques, pinces robotiques
-- **Architecture** : façades paramétriques, structures en nid d'abeille
-- **Structures** : lattices, géométries paramétriques
+### Optimized Templates (8 types)
+Ultra-fast generation (~2s) for common types:
+- **Medical**: splints (orthoses), cardiovascular stents
+- **Mechanical**: heat sinks, robotic grippers
+- **Architecture**: parametric facades, honeycomb structures
+- **Structures**: lattices, parametric geometries
 
-### Génération Universelle (Chain-of-Thought)
-Pour tout ce qui n'est pas dans les templates (~20s) :
-- Engrenages, vis, écrous
-- Supports, brackets, adaptateurs
-- Boîtiers, enclosures
-- Connecteurs, joints
-- **N'importe quelle forme descriptible**
+### Universal Generation (Chain-of-Thought)
+For everything not in templates (~20s):
+- Gears, screws, nuts
+- Supports, brackets, adapters
+- Housings, enclosures
+- Connectors, joints
+- **Any describable shape**
 
 ## Architecture
 
-### 12 Agents Spécialisés
+### 12 Specialized Agents
 
-**Agents Base** (3)
-- `AnalystAgent` : Détecte le type et extrait les paramètres
-- `GeneratorAgent` : Génère le code depuis les templates
-- `ValidatorAgent` : Exécute et valide le code
+**Base Agents** (3)
+- `AnalystAgent`: Detects type and extracts parameters
+- `GeneratorAgent`: Generates code from templates
+- `ValidatorAgent`: Executes and validates code
 
-**Agents Multi-Agent** (6)
-- `OrchestratorAgent` : Coordonne tout le pipeline + routing intelligent
-- `DesignExpertAgent` : Valide les règles métier (Qwen2.5-Coder 7B)
-- `ConstraintValidatorAgent` : Vérifie les contraintes de fabrication
-- `SyntaxValidatorAgent` : Valide la syntaxe Python avant exécution
-- `ErrorHandlerAgent` : Catégorise et gère les erreurs
-- `SelfHealingAgent` : Corrige automatiquement le code (DeepSeek-Coder 6.7B)
+**Multi-Agent Agents** (6)
+- `OrchestratorAgent`: Coordinates entire pipeline + intelligent routing
+- `DesignExpertAgent`: Validates business rules (Qwen2.5-Coder 7B)
+- `ConstraintValidatorAgent`: Checks manufacturing constraints
+- `SyntaxValidatorAgent`: Validates Python syntax before execution
+- `ErrorHandlerAgent`: Categorizes and handles errors
+- `SelfHealingAgent`: Automatically corrects code (DeepSeek-Coder 6.7B)
 
-**Agents Chain-of-Thought** (3)
-- `ArchitectAgent` : Analyse et raisonne sur le design (Qwen2.5 14B)
-- `PlannerAgent` : Crée le plan de construction (Qwen2.5-Coder 14B)
-- `CodeSynthesizerAgent` : Génère le code final (DeepSeek-Coder 33B)
+**Chain-of-Thought Agents** (3)
+- `ArchitectAgent`: Analyzes and reasons about design (Qwen2.5 14B)
+- `PlannerAgent`: Creates construction plan (Qwen2.5-Coder 14B)
+- `CodeSynthesizerAgent`: Generates final code (DeepSeek-Coder 33B)
 
-### Routing Intelligent
+### Intelligent Routing
 
 ```
-Prompt utilisateur
+User prompt
     ↓
-Analyst Agent détecte le type
+Analyst Agent detects type
     ↓
-    ├─ Type connu → Template (2s, local)
-    └─ Type inconnu → Chain-of-Thought (20s, local)
+    ├─ Known type → Template (2s, local)
+    └─ Unknown type → Chain-of-Thought (20s, local)
 ```
 
 ## Installation
 
-> 📚 **Guides Détaillés Disponibles** :
-> - **[INSTALL_OLLAMA.md](INSTALL_OLLAMA.md)** - Guide complet d'installation d'Ollama (recommandé pour débutants)
-> - **[verify_ollama.sh](verify_ollama.sh)** - Script de vérification automatique de l'installation
-> - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Résolution des erreurs courantes
-> - **[TEST_LLM.md](TEST_LLM.md)** - Tests et cas d'usage
+> 📚 **Detailed Guides Available**:
+> - **[INSTALL_OLLAMA.md](INSTALL_OLLAMA.md)** - Complete Ollama installation guide (recommended for beginners)
+> - **[verify_ollama.sh](verify_ollama.sh)** - Automatic installation verification script
+> - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Troubleshooting common errors
+> - **[TEST_LLM.md](TEST_LLM.md)** - Tests and use cases
 
-### Prérequis
+### Prerequisites
 - Python 3.10+
 - Ollama
-- 16-32 GB RAM (selon les modèles)
+- 16-32 GB RAM (depending on models)
 
-### 1. Installer Ollama
+### 1. Install Ollama
 
-**Guide rapide** - Téléchargez depuis [ollama.ai](https://ollama.ai)
+**Quick guide** - Download from [ollama.ai](https://ollama.ai)
 
-**Guide complet** - Voir [INSTALL_OLLAMA.md](INSTALL_OLLAMA.md) pour instructions détaillées
+**Complete guide** - See [INSTALL_OLLAMA.md](INSTALL_OLLAMA.md) for detailed instructions
 
-### 2. Télécharger les Modèles
+### 2. Download Models
 
-**Configuration standard (32GB RAM)** :
+**Standard configuration (32GB RAM)**:
 ```bash
 ollama pull qwen2.5-coder:7b
 ollama pull deepseek-coder:6.7b
@@ -82,14 +82,14 @@ ollama pull qwen2.5-coder:14b
 ollama pull deepseek-coder:33b
 ```
 
-**Configuration légère (16GB RAM)** :
+**Lightweight configuration (16GB RAM)**:
 ```bash
 ollama pull qwen2.5-coder:7b
 ollama pull deepseek-coder:6.7b
 ollama pull qwen2.5:7b
 ```
 
-### 3. Installer les Dépendances Python
+### 3. Install Python Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -97,44 +97,44 @@ pip install -r requirements.txt
 
 ### 4. Configuration
 
-Copiez `.env.example` vers `.env` et ajustez si nécessaire :
+Copy `.env.example` to `.env` and adjust if needed:
 
 ```bash
 # Ollama
 OLLAMA_BASE_URL=http://localhost:11434
 
-# Modèles pour agents multi-agent
+# Models for multi-agent agents
 DESIGN_EXPERT_MODEL=qwen2.5-coder:7b
 CODE_LLM_MODEL=deepseek-coder:6.7b
 
-# Modèles pour Chain-of-Thought
+# Models for Chain-of-Thought
 COT_ARCHITECT_MODEL=qwen2.5:14b
 COT_PLANNER_MODEL=qwen2.5-coder:14b
 COT_SYNTHESIZER_MODEL=deepseek-coder:33b
 ```
 
-### 5. Lancer l'Application
+### 5. Launch the Application
 
 ```bash
-# Terminal 1 : Ollama
+# Terminal 1: Ollama
 ollama serve
 
-# Terminal 2 : Backend
+# Terminal 2: Backend
 cd backend
 python main.py
 
-# Terminal 3 : Frontend (optionnel)
+# Terminal 3: Frontend (optional)
 cd frontend
 python -m http.server 3000
 ```
 
-L'API sera disponible sur `http://localhost:8000`
+The API will be available at `http://localhost:8000`
 
-## Utilisation
+## Usage
 
-### API REST
+### REST API
 
-**Endpoint principal** : `POST /api/generate`
+**Main endpoint**: `POST /api/generate`
 
 ```bash
 curl -X POST http://localhost:8000/api/generate \
@@ -142,75 +142,75 @@ curl -X POST http://localhost:8000/api/generate \
   -d '{"prompt": "create a gear with 20 teeth"}'
 ```
 
-**Réponse** (Server-Sent Events) :
+**Response** (Server-Sent Events):
 ```json
 {"type": "status", "message": "Analyzing...", "progress": 10}
 {"type": "code", "code": "import cadquery as cq\n...", "progress": 70}
 {"type": "complete", "mesh": {...}, "stl_path": "output/gear.stl"}
 ```
 
-**Télécharger les fichiers** :
-- STL : `GET /api/export/stl`
-- STEP : `GET /api/export/step`
+**Download files**:
+- STL: `GET /api/export/stl`
+- STEP: `GET /api/export/step`
 
-### Interface Web
+### Web Interface
 
-Ouvrez `http://localhost:3000` dans votre navigateur.
+Open `http://localhost:3000` in your browser.
 
-### Exemples
+### Examples
 
 ```python
-# Orthèse médicale (template)
+# Medical orthosis (template)
 {
   "prompt": "create a wrist splint 270mm long, 70mm wide, 3.5mm thick"
 }
 
-# Engrenage (Chain-of-Thought)
+# Gear (Chain-of-Thought)
 {
   "prompt": "create a gear with 20 teeth, 50mm diameter, 10mm thick"
 }
 
-# Support personnalisé (Chain-of-Thought)
+# Custom support (Chain-of-Thought)
 {
   "prompt": "create a camera mount bracket for 1/4 inch screw"
 }
 
-# Forme simple (Chain-of-Thought)
+# Simple shape (Chain-of-Thought)
 {
   "prompt": "create a cube 50mm"
 }
 ```
 
-### 🚀 Batch Runner - Exécution Automatique
+### 🚀 Batch Runner - Automatic Execution
 
-Exécutez automatiquement plusieurs prompts CAD avec logs et sauvegarde des résultats :
+Automatically execute multiple CAD prompts with logs and result saving:
 
 ```bash
-# Méthode simple (recommandée)
+# Simple method (recommended)
 ./run_batch.sh
 
-# Ou directement avec Python
+# Or directly with Python
 python3 batch_runner.py
 
-# Avec fichier de prompts personnalisé
-python3 batch_runner.py mes_prompts.json
+# With custom prompts file
+python3 batch_runner.py my_prompts.json
 ```
 
-**Fonctionnalités** :
-- ✅ Exécution séquentielle de tous les prompts
-- 📝 Logs complets pour chaque prompt
-- 💾 Sauvegarde du code Python généré
-- 📊 Rapport JSON avec résultats et métriques
-- ⏱️ Mesure du temps d'exécution
+**Features**:
+- ✅ Sequential execution of all prompts
+- 📝 Complete logs for each prompt
+- 💾 Save generated Python code
+- 📊 JSON report with results and metrics
+- ⏱️ Execution time measurement
 
-**Personnalisation** : Éditez `prompts.json` pour ajouter vos propres prompts :
+**Customization**: Edit `prompts.json` to add your own prompts:
 
 ```json
 {
   "prompts": [
     {
       "id": 1,
-      "name": "Mon Objet",
+      "name": "My Object",
       "enabled": true,
       "prompt": "Create a custom object..."
     }
@@ -218,102 +218,102 @@ python3 batch_runner.py mes_prompts.json
 }
 ```
 
-**Résultats** : Tous les fichiers sont sauvegardés dans `batch_results/` :
-- `batch_run_*.log` - Logs d'exécution complets
-- `batch_results_*.json` - Résultats structurés avec tous les détails
-- `prompt_*_code.py` - Code Python généré pour chaque prompt
-- Fichiers STL dans `backend/output/`
+**Results**: All files are saved in `batch_results/`:
+- `batch_run_*.log` - Complete execution logs
+- `batch_results_*.json` - Structured results with all details
+- `prompt_*_code.py` - Generated Python code for each prompt
+- STL files in `backend/output/`
 
-Voir [BATCH_README.md](BATCH_README.md) pour la documentation complète.
+See [BATCH_README.md](BATCH_README.md) for complete documentation.
 
 ## Performance
 
-| Type | Temps | Coût | Mode |
-|------|-------|------|------|
+| Type | Time | Cost | Mode |
+|------|------|------|------|
 | Template | 1-2s | $0 | Local |
 | CoT Simple | 12-15s | $0 | Local |
-| CoT Moyen | 18-22s | $0 | Local |
-| CoT Complexe | 25-35s | $0 | Local |
+| CoT Medium | 18-22s | $0 | Local |
+| CoT Complex | 25-35s | $0 | Local |
 
-*Temps avec modèles 14B/33B sur CPU. 2-3x plus rapide avec GPU.*
+*Times with 14B/33B models on CPU. 2-3x faster with GPU.*
 
-## Avantages
+## Advantages
 
-- ✅ **100% Gratuit** - Aucun frais d'API, modèles open-source
-- ✅ **100% Local** - Pas de connexion internet requise (après setup)
-- ✅ **100% Privé** - Vos données restent sur votre machine
-- ✅ **Illimité** - Pas de quota, pas de rate limiting
-- ✅ **Flexible** - Génère n'importe quelle forme 3D
+- ✅ **100% Free** - No API fees, open-source models
+- ✅ **100% Local** - No internet connection required (after setup)
+- ✅ **100% Private** - Your data stays on your machine
+- ✅ **Unlimited** - No quotas, no rate limiting
+- ✅ **Flexible** - Generates any 3D shape
 
 ## Technologies
 
-- **Backend** : FastAPI, Python 3.10+
-- **CAD** : CadQuery 2.4
-- **LLMs** : Ollama (Qwen2.5, DeepSeek-Coder)
-- **Export** : STL, STEP
+- **Backend**: FastAPI, Python 3.10+
+- **CAD**: CadQuery 2.4
+- **LLMs**: Ollama (Qwen2.5, DeepSeek-Coder)
+- **Export**: STL, STEP
 
 ## Documentation
 
-### Architecture et Système
-- [COT_SYSTEM.md](COT_SYSTEM.md) - Documentation du système Chain-of-Thought
-- [MULTI_AGENT_SYSTEM.md](MULTI_AGENT_SYSTEM.md) - Architecture multi-agent détaillée
+### Architecture and System
+- [COT_SYSTEM.md](COT_SYSTEM.md) - Chain-of-Thought system documentation
+- [MULTI_AGENT_SYSTEM.md](MULTI_AGENT_SYSTEM.md) - Detailed multi-agent architecture
 
-### Installation et Configuration
-- [INSTALL_OLLAMA.md](INSTALL_OLLAMA.md) - Guide complet d'installation d'Ollama
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Résolution des problèmes courants
-- [TEST_LLM.md](TEST_LLM.md) - Tests et validation du système LLM
+### Installation and Configuration
+- [INSTALL_OLLAMA.md](INSTALL_OLLAMA.md) - Complete Ollama installation guide
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common troubleshooting
+- [TEST_LLM.md](TEST_LLM.md) - Tests and LLM system validation
 
-## Dépannage
+## Troubleshooting
 
-**Ollama n'est pas accessible**
+**Ollama not accessible**
 ```bash
-# Vérifiez qu'Ollama tourne
+# Check that Ollama is running
 ollama serve
 
 # Test
 curl http://localhost:11434/api/tags
 ```
 
-**Modèle non trouvé**
+**Model not found**
 ```bash
 ollama pull qwen2.5:14b
 ```
 
-**Mémoire insuffisante**
+**Insufficient memory**
 
-Utilisez les modèles 7B dans `.env` :
+Use 7B models in `.env`:
 ```bash
 COT_ARCHITECT_MODEL=qwen2.5:7b
 COT_PLANNER_MODEL=qwen2.5-coder:7b
 COT_SYNTHESIZER_MODEL=deepseek-coder:6.7b
 ```
 
-**Génération trop lente**
+**Generation too slow**
 
-- Utilisez un GPU (2-3x plus rapide)
-- Passez aux modèles 7B
-- Fermez les autres applications
+- Use a GPU (2-3x faster)
+- Switch to 7B models
+- Close other applications
 
-## Contribuer
+## Contributing
 
-Les contributions sont bienvenues !
+Contributions are welcome!
 
-1. Fork le repo
-2. Créez votre branche (`git checkout -b feature/AmazingFeature`)
-3. Commit vos changements (`git commit -m 'Add some AmazingFeature'`)
-4. Push sur la branche (`git push origin feature/AmazingFeature`)
-5. Ouvrez une Pull Request
+1. Fork the repo
+2. Create your branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## Licence
+## License
 
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+This project is licensed under the MIT License. See the `LICENSE` file for details.
 
-## Auteurs
+## Authors
 
-- Développement initial et architecture multi-agent
+- Initial development and multi-agent architecture
 
-## Remerciements
+## Acknowledgments
 
-- [CadQuery](https://github.com/CadQuery/cadquery) pour le moteur CAD
-- [Ollama](https://ollama.ai) pour l'infrastructure LLM locale
-- [Qwen](https://github.com/QwenLM/Qwen) et [DeepSeek](https://github.com/deepseek-ai/DeepSeek-Coder) pour les modèles open-source
+- [CadQuery](https://github.com/CadQuery/cadquery) for the CAD engine
+- [Ollama](https://ollama.ai) for local LLM infrastructure
+- [Qwen](https://github.com/QwenLM/Qwen) and [DeepSeek](https://github.com/deepseek-ai/DeepSeek-Coder) for open-source models
