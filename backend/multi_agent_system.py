@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Système multi-agent pour la génération CAD.
-12 agents qui travaillent ensemble : validation, génération, correction d'erreurs, etc.
-Les agents CoT permettent de générer n'importe quelle forme, pas juste les templates.
+Multi-agent system for CAD generation.
+12 agents working together: validation, generation, error correction, etc.
+CoT agents allow generating any shape, not just templates.
 """
 
 import os
@@ -20,7 +20,7 @@ log = logging.getLogger("cadamx.multi_agent")
 
 
 class AgentStatus(Enum):
-    """Status d'un agent (pending, running, success, failed, retry)"""
+    """Agent status (pending, running, success, failed, retry)"""
     PENDING = "pending"
     RUNNING = "running"
     SUCCESS = "success"
@@ -30,7 +30,7 @@ class AgentStatus(Enum):
 
 @dataclass
 class AgentResult:
-    """Ce qu'un agent retourne après son exécution"""
+    """What an agent returns after its execution"""
     status: AgentStatus
     data: Any = None
     errors: List[str] = None
@@ -45,7 +45,7 @@ class AgentResult:
 
 @dataclass
 class WorkflowContext:
-    """Contexte partagé entre tous les agents"""
+    """Context shared between all agents"""
     prompt: str
     analysis: Optional[Dict[str, Any]] = None
     design_validation: Optional[Dict[str, Any]] = None
@@ -65,7 +65,7 @@ class WorkflowContext:
 # ========== OLLAMA LLM CLIENT ==========
 
 class OllamaLLM:
-    """Client pour interagir avec les modèles Ollama (local)"""
+    """Client to interact with Ollama models (local)"""
 
     def __init__(self, model_name: str, base_url: Optional[str] = None):
         self.model_name = model_name
@@ -84,7 +84,7 @@ class OllamaLLM:
             self.use_fallback = True
 
     async def generate(self, prompt: str, max_tokens: int = 512, temperature: float = 0.7) -> str:
-        """Génère une réponse avec le modèle LLM"""
+        """Generates a response with the LLM model"""
 
         if self.use_fallback:
             return await self._fallback_generate(prompt)
@@ -102,7 +102,7 @@ class OllamaLLM:
                 }
             )
 
-            # Ollama retourne un dict avec 'response'
+            # Ollama returns a dict with 'response'
             if isinstance(response, dict):
                 return response.get("response", "").strip()
 
@@ -114,7 +114,7 @@ class OllamaLLM:
             return await self._fallback_generate(prompt)
 
     async def _fallback_generate(self, prompt: str) -> str:
-        """Fallback basique basé sur des règles heuristiques"""
+        """Basic fallback based on heuristic rules"""
 
         prompt_lower = prompt.lower()
 
@@ -150,8 +150,8 @@ class OllamaLLM:
 class OrchestratorAgent:
     """
     🎯 ORCHESTRATOR AGENT
-    Rôle: Coordonner le pipeline complet et gérer le workflow
-    Priorité: CRITIQUE
+    Role: Coordinate the complete pipeline and manage the workflow
+    Priority: CRITICAL
     """
 
     def __init__(self, analyst_agent, generator_agent, validator_agent):
@@ -159,7 +159,7 @@ class OrchestratorAgent:
         self.generator = generator_agent
         self.validator = validator_agent
 
-        # Agents multi-agent (7 - added CriticAgent)
+        # Multi-agent agents (7 - added CriticAgent)
         self.design_expert = DesignExpertAgent()
         self.constraint_validator = ConstraintValidatorAgent()
         self.syntax_validator = SyntaxValidatorAgent()
@@ -167,12 +167,12 @@ class OrchestratorAgent:
         self.self_healing = SelfHealingAgent()
         self.critic = CriticAgent()  # 🔍 NEW: Semantic validation BEFORE execution
 
-        # Agents Chain-of-Thought (3) - Pour formes universelles
+        # Chain-of-Thought agents (3) - For universal shapes
         self.architect = ArchitectAgent()
         self.planner = PlannerAgent()
         self.code_synthesizer = CodeSynthesizerAgent()
 
-        # Types connus supportés par templates
+        # Known types supported by templates
         self.known_types = {
             "splint", "stent", "lattice", "heatsink",
             "honeycomb", "gripper", "facade_pyramid", "facade_parametric"
@@ -182,32 +182,32 @@ class OrchestratorAgent:
 
     def _should_use_cot(self, analysis: Dict[str, Any]) -> bool:
         """
-        Détermine si on doit utiliser Chain-of-Thought (formes universelles)
-        ou Templates (types connus)
+        Determines whether to use Chain-of-Thought (universal shapes)
+        or Templates (known types)
 
         Returns:
-            True si on doit utiliser CoT (forme inconnue)
-            False si on peut utiliser un template (forme connue)
+            True if CoT should be used (unknown shape)
+            False if a template can be used (known shape)
         """
         app_type = analysis.get("type", "unknown")
 
-        # Si le type est inconnu ou si l'analyst n'est pas confiant
+        # If type is unknown or analyst is not confident
         if app_type == "unknown" or app_type not in self.known_types:
-            log.info(f"🧠 Type '{app_type}' inconnu → Utilisation Chain-of-Thought")
+            log.info(f"🧠 Type '{app_type}' unknown → Using Chain-of-Thought")
             return True
 
-        # Si type connu, utiliser template
-        log.info(f"⚡ Type '{app_type}' connu → Utilisation Template")
+        # If known type, use template
+        log.info(f"⚡ Type '{app_type}' known → Using Template")
         return False
 
     async def execute_workflow(self, prompt: str, progress_callback=None) -> Dict[str, Any]:
         """
-        Exécute le workflow complet avec gestion d'erreurs et retry
+        Executes the complete workflow with error handling and retry
         """
         context = WorkflowContext(prompt=prompt)
 
         try:
-            # PHASE 1: Analyse (Agent existant)
+            # PHASE 1: Analysis (Existing agent)
             if progress_callback:
                 await progress_callback("status", {"message": "📊 Analyzing prompt...", "progress": 10})
 
@@ -223,7 +223,7 @@ class OrchestratorAgent:
 
             context.analysis = result.data
 
-            # PHASE 2: Design Expert - Validation des règles métier
+            # PHASE 2: Design Expert - Business rules validation
             if progress_callback:
                 await progress_callback("status", {"message": "🎨 Validating design rules...", "progress": 20})
 
@@ -239,7 +239,7 @@ class OrchestratorAgent:
 
             context.design_validation = result.data
 
-            # PHASE 3: Constraint Validator - Vérifier les contraintes
+            # PHASE 3: Constraint Validator - Check constraints
             if progress_callback:
                 await progress_callback("status", {"message": "⚖️ Checking manufacturing constraints...", "progress": 30})
 
@@ -255,14 +255,14 @@ class OrchestratorAgent:
 
             context.constraints_validation = result.data
 
-            # PHASE 4: Génération de code - ROUTING: Template vs Chain-of-Thought
+            # PHASE 4: Code generation - ROUTING: Template vs Chain-of-Thought
             use_cot = self._should_use_cot(context.analysis)
 
             if use_cot:
-                # ========== CHAIN-OF-THOUGHT PATHWAY (Formes universelles) ==========
+                # ========== CHAIN-OF-THOUGHT PATHWAY (Universal shapes) ==========
                 log.info("🧠 Using Chain-of-Thought agents for universal shape generation")
 
-                # PHASE 4a: Architect Agent - Raisonnement sur le design
+                # PHASE 4a: Architect Agent - Design reasoning
                 if progress_callback:
                     await progress_callback("status", {"message": "🏗️ Architect analyzing design...", "progress": 40})
 
@@ -273,7 +273,7 @@ class OrchestratorAgent:
                     log.error(f"Architect failed: {e}")
                     return self._build_error_response(context, f"Architect analysis failed: {e}")
 
-                # PHASE 4b: Planner Agent - Plan de construction
+                # PHASE 4b: Planner Agent - Construction plan
                 if progress_callback:
                     await progress_callback("status", {"message": "📐 Planner creating construction plan...", "progress": 50})
 
@@ -284,14 +284,14 @@ class OrchestratorAgent:
                     log.error(f"Planner failed: {e}")
                     return self._build_error_response(context, f"Planning failed: {e}")
 
-                # PHASE 4c: Code Synthesizer - Génération du code
+                # PHASE 4c: Code Synthesizer - Code generation
                 if progress_callback:
                     await progress_callback("status", {"message": "💻 Synthesizer generating code...", "progress": 60})
 
                 try:
                     generated = await self.code_synthesizer.generate_code(construction_plan, design_analysis)
                     code = generated.code
-                    detected_type = "cot_generated"  # Type spécial pour CoT
+                    detected_type = "cot_generated"  # Special type for CoT
                     log.info(f"💻 Synthesizer: Code generated (confidence: {generated.confidence:.2f})")
                 except Exception as e:
                     log.error(f"Code synthesis failed: {e}")
@@ -314,7 +314,7 @@ class OrchestratorAgent:
                 context.generated_code = code
 
             else:
-                # ========== TEMPLATE PATHWAY (Types connus) ==========
+                # ========== TEMPLATE PATHWAY (Known types) ==========
                 log.info("⚡ Using template-based generation")
 
                 if progress_callback:
@@ -348,7 +348,7 @@ class OrchestratorAgent:
 
                 context.generated_code = code
 
-            # PHASE 5: Syntax Validator - Vérifier la syntaxe
+            # PHASE 5: Syntax Validator - Check syntax
             if progress_callback:
                 await progress_callback("status", {"message": "✅ Validating syntax...", "progress": 60})
 
@@ -360,7 +360,7 @@ class OrchestratorAgent:
             )
 
             if result.status != AgentStatus.SUCCESS:
-                # Tenter une correction automatique
+                # Attempt automatic correction
                 if progress_callback:
                     await progress_callback("status", {"message": "🩹 Self-healing code...", "progress": 65})
 
@@ -589,16 +589,16 @@ class OrchestratorAgent:
 class DesignExpertAgent:
     """
     🎨 DESIGN EXPERT AGENT
-    Rôle: Valider les règles métier par type CAD avec LLM
-    Priorité: CRITIQUE
-    Modèle: mistralai/Mistral-7B-Instruct-v0.3
+    Role: Validate business rules by CAD type with LLM
+    Priority: CRITICAL
+    Model: mistralai/Mistral-7B-Instruct-v0.3
     """
 
     def __init__(self):
         model_name = os.getenv("DESIGN_EXPERT_MODEL", "qwen2.5-coder:7b")
         self.llm = OllamaLLM(model_name)
 
-        # Règles métier par type CAD
+        # Business rules by CAD type
         self.design_rules = {
             "splint": {
                 "min_thickness": 2.0,
@@ -733,12 +733,12 @@ Validation:"""
 class ConstraintValidatorAgent:
     """
     ⚖️ CONSTRAINT VALIDATOR AGENT
-    Rôle: Vérifier les contraintes de fabrication avant génération
-    Priorité: CRITIQUE
+    Role: Check manufacturing constraints before generation
+    Priority: CRITICAL
     """
 
     def __init__(self):
-        # Contraintes de fabrication
+        # Manufacturing constraints
         self.manufacturing_constraints = {
             "min_feature_size": 0.5,  # mm
             "max_model_size": 500.0,  # mm
@@ -824,8 +824,8 @@ class ConstraintValidatorAgent:
 class SyntaxValidatorAgent:
     """
     ✅ SYNTAX VALIDATOR AGENT
-    Rôle: Vérifier la syntaxe du code Python avant exécution
-    Priorité: HAUTE
+    Role: Check Python code syntax before execution
+    Priority: HIGH
     """
 
     def __init__(self):
@@ -936,12 +936,12 @@ class SyntaxValidatorAgent:
 class ErrorHandlerAgent:
     """
     🚨 ERROR HANDLER AGENT
-    Rôle: Gérer toutes les erreurs de façon intelligente
-    Priorité: HAUTE
+    Role: Handle all errors intelligently
+    Priority: HIGH
     """
 
     def __init__(self):
-        # Classification des erreurs
+        # Error classification
         self.error_categories = {
             "syntax": ["SyntaxError", "IndentationError", "TabError"],
             "runtime": ["NameError", "TypeError", "AttributeError"],
@@ -1033,9 +1033,9 @@ class ErrorHandlerAgent:
 class SelfHealingAgent:
     """
     🩹 SELF-HEALING AGENT
-    Rôle: Corriger automatiquement les erreurs de code
-    Priorité: MOYENNE
-    Modèle: bigcode/starcoder2-15b
+    Role: Automatically correct code errors
+    Priority: MEDIUM
+    Model: bigcode/starcoder2-15b
     """
 
     def __init__(self):
@@ -2850,15 +2850,15 @@ class SelfHealingAgent:
 class CriticAgent:
     """
     🔍 CRITIC AGENT
-    Rôle: Valider la logique et la sémantique du code AVANT exécution
-    Priorité: HAUTE
+    Role: Validate code logic and semantics BEFORE execution
+    Priority: HIGH
 
-    Détecte les erreurs sémantiques que SyntaxValidator ne peut pas voir :
-    - Pieds de table mal positionnés (centre vs coins)
-    - Objets censés être creux mais sans cut()/shell()
-    - Conflits de workflow (loft() + revolve())
-    - Dimensions incohérentes ou espacements incorrects
-    - Mauvaise forme générée (torus vs sphere, cone vs cylinder, etc.)
+    Detects semantic errors that SyntaxValidator cannot see:
+    - Mispositioned table legs (center vs corners)
+    - Objects meant to be hollow but without cut()/shell()
+    - Workflow conflicts (loft() + revolve())
+    - Inconsistent dimensions or incorrect spacing
+    - Wrong generated shape (torus vs sphere, cone vs cylinder, etc.)
     """
 
     def __init__(self):

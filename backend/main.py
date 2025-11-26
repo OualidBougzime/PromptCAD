@@ -14,7 +14,7 @@ from agents import AnalystAgent, GeneratorAgent, ValidatorAgent
 from multi_agent_system import OrchestratorAgent
 
 # ========== CONFIGURATION ==========
-# Charger les variables d'environnement depuis .env
+# Load environment variables from .env
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
@@ -31,15 +31,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Agents (3 existants)
+# Agents (3 existing)
 analyst = AnalystAgent()
 generator = GeneratorAgent()
 validator = ValidatorAgent()
 
-# Orchestrateur (coordonne les 9 agents: 3 existants + 6 nouveaux)
+# Orchestrator (coordinates 9 agents: 3 existing + 6 new)
 orchestrator = OrchestratorAgent(analyst, generator, validator)
 
-# Stockage temporaire des derniers fichiers générés
+# Temporary storage of last generated files
 _last_stl_path: Optional[str] = None
 _last_step_path: Optional[str] = None
 _last_app_type: Optional[str] = None
@@ -53,14 +53,14 @@ class GenerateRequest(BaseModel):
 # ========== HELPERS ==========
 def escape_for_json(text: str) -> str:
     """
-    Échappe une chaîne pour l'inclure dans du JSON.
-    Important pour le code Python qui contient des newlines, quotes, etc.
+    Escapes a string for inclusion in JSON.
+    Important for Python code that contains newlines, quotes, etc.
     """
     if not text:
         return text
-    
+
     return (text
-        .replace('\\', '\\\\')  # Backslash d'abord
+        .replace('\\', '\\\\')  # Backslash first
         .replace('\n', '\\n')   # Newlines
         .replace('\r', '\\r')   # Carriage returns
         .replace('\t', '\\t')   # Tabs
@@ -70,8 +70,8 @@ def escape_for_json(text: str) -> str:
 
 async def send_sse_event(event_type: str, data: dict) -> str:
     """
-    Formate un événement SSE.
-    Retourne une chaîne prête à être envoyée.
+    Formats an SSE event.
+    Returns a string ready to be sent.
     """
     data['type'] = event_type
     json_str = json.dumps(data, ensure_ascii=False)
@@ -89,13 +89,13 @@ async def root():
 @app.post("/api/generate")
 async def generate_endpoint(request: GenerateRequest):
     """
-    Endpoint principal de génération avec streaming SSE.
-    
-    Flux d'événements:
-    1. type: "status" - Mises à jour de progression
-    2. type: "code" - Code Python généré (peut être échappé)
-    3. type: "complete" - Résultat final avec mesh, analysis, etc.
-    4. type: "error" - En cas d'erreur
+    Main generation endpoint with SSE streaming.
+
+    Event flow:
+    1. type: "status" - Progress updates
+    2. type: "code" - Generated Python code (may be escaped)
+    3. type: "complete" - Final result with mesh, analysis, etc.
+    4. type: "error" - In case of error
     """
     
     global _last_stl_path, _last_step_path, _last_app_type
@@ -104,29 +104,29 @@ async def generate_endpoint(request: GenerateRequest):
         try:
             log.info(f"🚀 Starting multi-agent workflow for prompt: {request.prompt[:100]}...")
 
-            # Liste pour collecter les événements de progression
+            # List to collect progress events
             progress_events = []
 
-            # Callback pour envoyer les événements de progression
+            # Callback to send progress events
             async def progress_callback(event_type: str, data: dict):
                 if event_type == "code":
-                    # Échapper le code pour JSON
+                    # Escape code for JSON
                     data["code"] = escape_for_json(data.get("code", ""))
                 event = await send_sse_event(event_type, data)
                 progress_events.append(event)
 
-            # Exécuter le workflow orchestré avec les 9 agents
+            # Execute orchestrated workflow with 9 agents
             result = await orchestrator.execute_workflow(
                 request.prompt,
                 progress_callback=progress_callback
             )
 
-            # Envoyer tous les événements de progression
+            # Send all progress events
             for event in progress_events:
                 yield event
 
             if result["success"]:
-                # Succès - stocker les paths
+                # Success - store paths
                 _last_stl_path = result.get("stl_path")
                 _last_step_path = result.get("step_path")
                 _last_app_type = result.get("app_type", "model")
@@ -137,30 +137,30 @@ async def generate_endpoint(request: GenerateRequest):
                 if _last_step_path:
                     log.info(f"  STEP: {_last_step_path}")
 
-                # Envoyer résultat final
+                # Send final result
                 response_data = {
                     "success": True,
                     "mesh": result.get("mesh"),
                     "analysis": result.get("analysis"),
-                    "code": result.get("code"),  # Code non échappé pour le résultat final
+                    "code": result.get("code"),  # Unescaped code for final result
                     "app_type": result.get("app_type"),
                     "progress": 100
                 }
 
-                # Ajouter les paths si disponibles
+                # Add paths if available
                 if _last_stl_path:
                     response_data["stl_path"] = _last_stl_path
                 if _last_step_path:
                     response_data["step_path"] = _last_step_path
 
-                # Ajouter les métadonnées du système multi-agent
+                # Add multi-agent system metadata
                 if "metadata" in result:
                     response_data["metadata"] = result["metadata"]
 
                 yield await send_sse_event("complete", response_data)
 
             else:
-                # Erreur - les agents ont géré l'erreur
+                # Error - agents handled the error
                 errors = result.get("errors", ["Unknown error"])
                 log.error(f"❌ Multi-agent workflow failed: {errors}")
 
@@ -172,7 +172,7 @@ async def generate_endpoint(request: GenerateRequest):
                 })
 
         except Exception as e:
-            # Erreur générale non capturée
+            # General uncaught error
             log.error(f"❌ Orchestrator error: {e}", exc_info=True)
             yield await send_sse_event("error", {
                 "success": False,
@@ -194,27 +194,27 @@ async def generate_endpoint(request: GenerateRequest):
 
 @app.get("/api/export/stl")
 async def export_stl():
-    """Télécharge le dernier fichier STL généré"""
+    """Download the last generated STL file"""
     from pathlib import Path
-    
-    # Utiliser le chemin du dernier fichier généré
+
+    # Use the path of the last generated file
     if _last_stl_path and os.path.exists(_last_stl_path):
         stl_file = Path(_last_stl_path)
     else:
-        # Fallback: chercher le fichier le plus récent
+        # Fallback: search for most recent file
         output_dir = Path(__file__).parent / "output"
         stl_files = sorted(
             output_dir.glob("generated_*.stl"),
             key=lambda p: p.stat().st_mtime,
             reverse=True
         )
-        
+
         if stl_files:
             stl_file = stl_files[0]
         else:
             raise HTTPException(status_code=404, detail="No STL file available")
-    
-    # Déterminer le nom du fichier basé sur le type
+
+    # Determine filename based on type
     filename = f"{_last_app_type or 'model'}_generated.stl"
     
     return FileResponse(
@@ -226,10 +226,10 @@ async def export_stl():
 
 @app.get("/api/export/step")
 async def export_step():
-    """Télécharge le dernier fichier STEP généré"""
+    """Download the last generated STEP file"""
     if not _last_step_path or not os.path.exists(_last_step_path):
         raise HTTPException(status_code=404, detail="No STEP file available")
-    
+
     filename = f"{_last_app_type or 'model'}_generated.step"
     
     return FileResponse(
@@ -242,8 +242,8 @@ async def export_step():
 # ========== MAIN ==========
 if __name__ == "__main__":
     import uvicorn
-    
-    # Créer le dossier output si nécessaire
+
+    # Create output directory if needed
     output_dir = Path(__file__).parent / "output"
     output_dir.mkdir(exist_ok=True)
     
