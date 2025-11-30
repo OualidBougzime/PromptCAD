@@ -1,6 +1,7 @@
 ﻿import os
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -102,6 +103,7 @@ async def generate_endpoint(request: GenerateRequest):
     
     async def event_stream():
         try:
+            start_time = time.time()
             log.info(f"🚀 Starting multi-agent workflow for prompt: {request.prompt[:100]}...")
 
             # List to collect progress events
@@ -121,6 +123,9 @@ async def generate_endpoint(request: GenerateRequest):
                 progress_callback=progress_callback
             )
 
+            # Calculate execution time
+            execution_time = time.time() - start_time
+
             # Send all progress events
             for event in progress_events:
                 yield event
@@ -131,7 +136,7 @@ async def generate_endpoint(request: GenerateRequest):
                 _last_step_path = result.get("step_path")
                 _last_app_type = result.get("app_type", "model")
 
-                log.info(f"✅ Multi-agent generation successful!")
+                log.info(f"✅ Multi-agent generation successful! (⏱️  {execution_time:.2f}s)")
                 if _last_stl_path:
                     log.info(f"  STL: {_last_stl_path}")
                 if _last_step_path:
@@ -144,7 +149,8 @@ async def generate_endpoint(request: GenerateRequest):
                     "analysis": result.get("analysis"),
                     "code": result.get("code"),  # Unescaped code for final result
                     "app_type": result.get("app_type"),
-                    "progress": 100
+                    "progress": 100,
+                    "execution_time": round(execution_time, 2)  # Add execution time in seconds
                 }
 
                 # Add paths if available
@@ -162,13 +168,14 @@ async def generate_endpoint(request: GenerateRequest):
             else:
                 # Error - agents handled the error
                 errors = result.get("errors", ["Unknown error"])
-                log.error(f"❌ Multi-agent workflow failed: {errors}")
+                log.error(f"❌ Multi-agent workflow failed: {errors} (⏱️  {execution_time:.2f}s)")
 
                 yield await send_sse_event("error", {
                     "success": False,
                     "errors": errors,
                     "progress": 0,
-                    "metadata": result.get("metadata", {})
+                    "metadata": result.get("metadata", {}),
+                    "execution_time": round(execution_time, 2)
                 })
 
         except Exception as e:

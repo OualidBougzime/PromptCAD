@@ -3042,8 +3042,10 @@ class CriticAgent:
         }
 
         # Vérifier chaque forme mentionnée dans le prompt
+        import re
         for shape, requirements in shape_requirements.items():
-            if shape in prompt_lower:
+            # Use word boundaries to avoid false matches (e.g., "arc" in "architecture")
+            if re.search(rf'\b{re.escape(shape)}\b', prompt_lower):
                 # Vérifier les méthodes interdites
                 for forbidden in requirements['forbidden']:
                     if forbidden in code:
