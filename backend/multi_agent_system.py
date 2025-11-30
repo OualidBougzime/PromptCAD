@@ -204,8 +204,6 @@ class OrchestratorAgent:
         """
         Executes the complete workflow with error handling and retry
         """
-        import time
-        start_time = time.time()
         context = WorkflowContext(prompt=prompt)
 
         try:
@@ -501,11 +499,8 @@ class OrchestratorAgent:
             context.execution_result = result.data
 
             # SUCCÈS!
-            elapsed_time = time.time() - start_time
-            log.info(f"⏱️ Generation completed in {elapsed_time:.2f} seconds")
-
             if progress_callback:
-                await progress_callback("status", {"message": f"✅ Generation complete! ({elapsed_time:.2f}s)", "progress": 100})
+                await progress_callback("status", {"message": "✅ Generation complete!", "progress": 100})
 
             return {
                 "success": True,
@@ -519,8 +514,7 @@ class OrchestratorAgent:
                     "design_validation": context.design_validation,
                     "constraints_validation": context.constraints_validation,
                     "syntax_validation": context.syntax_validation,
-                    "retry_count": context.retry_count,
-                    "elapsed_time": elapsed_time
+                    "retry_count": context.retry_count
                 }
             }
 
@@ -2097,10 +2091,8 @@ class SelfHealingAgent:
                     # Look for lines that indicate start of wrong ring/washer code
                     if not replaced and not in_chain_to_replace:
                         # Check if this line starts wrong pattern (.box or single .circle without second circle)
-                        # IMPORTANT: Don't match export-related lines
-                        if (('.box(' in line) or \
-                           (('= (' in line or '=(' in line) and 'cq.Workplane' in line and '.extrude(' not in fixed_code)) and \
-                           'output' not in line.lower() and 'export' not in line.lower():
+                        if ('.box(' in line) or \
+                           (('= (' in line or '=(' in line) and 'cq.Workplane' in line and '.extrude(' not in fixed_code):
 
                             # Extract variable name and indent
                             var_match = re.match(r'(\s*)(\w+)\s*=', line)
@@ -2119,24 +2111,8 @@ class SelfHealingAgent:
                     # If we're in a chain to replace, skip lines until we find the end
                     elif in_chain_to_replace:
                         # Check if this line ends the chain
-                        # IMPORTANT: Don't consider export-related lines as end of chain
                         stripped = line.strip()
-
-                        # Stop the chain if we hit export/output lines
-                        if 'output' in line.lower() or 'export' in line.lower() or 'STL' in line or 'Path(__file__)' in line:
-                            # End the chain before the export lines
-                            log.info(f"🩹 Found end of chain before export line: {line[:60]}...")
-                            new_lines.append(f'{indent}# Ring/Washer (annulus) via two circles + extrude (fixed by SelfHealingAgent)')
-                            new_lines.append(f'{indent}{result_var} = (cq.Workplane("XY")')
-                            new_lines.append(f'{indent}          .circle({r_outer}).circle({r_inner})')
-                            new_lines.append(f'{indent}          .extrude({thickness}))')
-                            log.info(f"🩹 Replaced wrong pattern with ring/washer (R_out={r_outer}, R_in={r_inner}, thick={thickness})")
-                            replaced = True
-                            in_chain_to_replace = False
-                            # Keep the current line (export line)
-                            new_lines.append(line)
-                            continue
-                        elif stripped.endswith('))') or (stripped.endswith(')') and not stripped.startswith('.')):
+                        if stripped.endswith('))') or (stripped.endswith(')') and not stripped.startswith('.')):
                             # Found the end, insert correct code
                             log.info(f"🩹 Found end of chain: {line[:60]}...")
                             new_lines.append(f'{indent}# Ring/Washer (annulus) via two circles + extrude (fixed by SelfHealingAgent)')
@@ -3066,24 +3042,8 @@ class CriticAgent:
         }
 
         # Vérifier chaque forme mentionnée dans le prompt
-        import re
         for shape, requirements in shape_requirements.items():
-            # Use word boundaries to avoid false matches (e.g., "arc" in "architecture", "ring" in "rings")
-            # Special cases:
-            # - For stent: Check if prompt contains "stent" and skip ring/washer check
-            # - For honeycomb: Check if prompt contains "honeycomb" and skip arc check
-            if shape == 'ring' or shape == 'washer' or shape == 'annulus':
-                # Skip ring/washer check if prompt is about stents
-                if 'stent' in prompt_lower:
-                    continue
-
-            if shape == 'arc':
-                # Skip arc check if prompt is about honeycomb or architecture
-                if 'honeycomb' in prompt_lower or 'architecture' in prompt_lower:
-                    continue
-
-            # Use word boundary matching to avoid false positives
-            if re.search(r'\b' + re.escape(shape) + r'\b', prompt_lower):
+            if shape in prompt_lower:
                 # Vérifier les méthodes interdites
                 for forbidden in requirements['forbidden']:
                     if forbidden in code:
