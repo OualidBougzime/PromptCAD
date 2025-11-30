@@ -11,7 +11,7 @@ class AnalystAgent:
 
     APPLICATION_KEYWORDS = {
         'splint': ['splint', 'orthosis', 'orthèse', 'brace', 'hand', 'wrist', 'forearm', 'finger'],
-        'stent': ['stent', 'vascular', 'serpentine', 'expandable'],  # Restricted - no 'ring', 'strut', 'helical'
+        'stent': ['stent', 'vascular', 'serpentine', 'expandable', 'coronary', 'renal', 'artery'],  # Medical stent keywords
         'facade_pyramid': ['pyramid facade', 'hexagonal pyramid', 'triangle pyramid', 'pyramidal'],  # Removed generic 'hub'
         'honeycomb': ['honeycomb panel', 'alveolar', 'hexagonal cells', 'hex panel', 'cellular panel'],  # More specific
         'louvre_wall': ['louvre', 'louver', 'slat', 'diagonal', 'pavilion', 'lattice wall'],
@@ -106,8 +106,8 @@ class AnalystAgent:
         if 'gripper' in prompt:
             return 'gripper'
 
-        # 4. STENT - Requires at least 2 specific keywords
-        if 'stent' in prompt and ('serpentine' in prompt or 'vascular' in prompt or 'expandable' in prompt):
+        # 4. STENT - Requires "stent" keyword (medical device)
+        if 'stent' in prompt:
             return 'stent'
 
         # 5. HONEYCOMB PANEL - Requires "honeycomb" + context

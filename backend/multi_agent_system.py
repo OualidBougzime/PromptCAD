@@ -1802,6 +1802,13 @@ class SelfHealingAgent:
                 new_lines = []
                 skip_wrong_code = False
                 replaced = False
+                math_imported = False  # Track if math is already imported
+
+                # First pass: check if math is already imported
+                for line in lines:
+                    if 'import math' in line:
+                        math_imported = True
+                        break
 
                 for line in lines:
                     # Check if we should stop skipping (reached export/result/comment section)
@@ -1858,8 +1865,8 @@ class SelfHealingAgent:
                             indent = indent_match.group(1) if indent_match else ''
 
                         # Insert correct annular sector code (using user's robust approach)
+                        # Note: We add import math at the top level, not here (to avoid inserting inside functions)
                         new_lines.append(f'{indent}# Arc annulaire (annular sector) - fixed by SelfHealingAgent')
-                        new_lines.append(f'{indent}import math')
                         new_lines.append(f'{indent}')
                         new_lines.append(f'{indent}R_OUT = {R_ext}')
                         new_lines.append(f'{indent}ANGLE = {theta_deg}')
@@ -1897,7 +1904,30 @@ class SelfHealingAgent:
 
                     # Add line if we're not skipping
                     new_lines.append(line)
+
                 fixed_code = '\n'.join(new_lines)
+
+                # If we replaced code with arc sector and math isn't imported yet, add it at the top
+                if replaced and not math_imported:
+                    # Find the right place to insert import math (after existing imports)
+                    code_lines = fixed_code.split('\n')
+                    insert_index = 0
+
+                    # Find last import statement or first non-comment line
+                    for i, line in enumerate(code_lines):
+                        stripped = line.strip()
+                        if stripped.startswith('import ') or stripped.startswith('from '):
+                            insert_index = i + 1
+                        elif stripped and not stripped.startswith('#'):
+                            # Found first real code line
+                            if insert_index == 0:
+                                insert_index = i
+                            break
+
+                    # Insert import math at the appropriate position
+                    code_lines.insert(insert_index, 'import math')
+                    fixed_code = '\n'.join(code_lines)
+                    log.info(f"🩹 Added 'import math' at line {insert_index + 1} (after imports)")
 
             elif "SEMANTIC ERROR: Prompt asks for CONE but code uses" in error:
                 log.info("🩹 Attempting semantic fix: Replace cylinder/wrong pattern with cone extrude+taper")
@@ -2119,26 +2149,38 @@ class SelfHealingAgent:
                     # If we're in a chain to replace, skip lines until we find the end
                     elif in_chain_to_replace:
                         # Check if this line ends the chain
-                        # IMPORTANT: Don't consider export-related lines as end of chain
+                        # IMPORTANT: Don't skip export-related lines - stop BEFORE them
                         stripped = line.strip()
 
-                        # Stop the chain if we hit export/output lines
-                        if 'output' in line.lower() or 'export' in line.lower() or 'STL' in line or 'Path(__file__)' in line:
-                            # End the chain before the export lines
-                            log.info(f"🩹 Found end of chain before export line: {line[:60]}...")
+                        # Check if this is the start of export/output section (don't skip these!)
+                        # Look for lines that define output_dir, export, or print
+                        is_export_line = (
+                            stripped.startswith('output_dir') or
+                            stripped.startswith('output_path') or
+                            'cq.exporters.export' in stripped or
+                            stripped.startswith('print(') or
+                            '# Export' in line or
+                            '# STL' in line
+                        )
+
+                        if is_export_line:
+                            # End the chain BEFORE the export section
+                            log.info(f"🩹 Found end of chain before export section: {line[:60]}...")
                             new_lines.append(f'{indent}# Ring/Washer (annulus) via two circles + extrude (fixed by SelfHealingAgent)')
                             new_lines.append(f'{indent}{result_var} = (cq.Workplane("XY")')
                             new_lines.append(f'{indent}          .circle({r_outer}).circle({r_inner})')
                             new_lines.append(f'{indent}          .extrude({thickness}))')
+                            new_lines.append('')  # Empty line before export section
                             log.info(f"🩹 Replaced wrong pattern with ring/washer (R_out={r_outer}, R_in={r_inner}, thick={thickness})")
                             replaced = True
                             in_chain_to_replace = False
-                            # Keep the current line (export line)
+                            # Keep the current line (export line) - important!
                             new_lines.append(line)
                             continue
-                        elif stripped.endswith('))') or (stripped.endswith(')') and not stripped.startswith('.')):
-                            # Found the end, insert correct code
-                            log.info(f"🩹 Found end of chain: {line[:60]}...")
+                        elif (stripped.endswith('))') or (stripped.endswith(')') and not stripped.startswith('.'))):
+                            # Simple pattern like: result = cq.Workplane(...).box(...)
+                            # This ends on the same line, so skip this line only
+                            log.info(f"🩹 Found end of chain (single-line): {line[:60]}...")
                             new_lines.append(f'{indent}# Ring/Washer (annulus) via two circles + extrude (fixed by SelfHealingAgent)')
                             new_lines.append(f'{indent}{result_var} = (cq.Workplane("XY")')
                             new_lines.append(f'{indent}          .circle({r_outer}).circle({r_inner})')
@@ -2148,7 +2190,7 @@ class SelfHealingAgent:
                             in_chain_to_replace = False
                             continue
                         else:
-                            # Still in the chain, skip this line
+                            # Still in the chain (e.g., empty line, comment), skip this line
                             log.info(f"🩹 Skipping chain line: {line[:60]}...")
                             continue
 
@@ -3067,19 +3109,26 @@ class CriticAgent:
 
         # Vérifier chaque forme mentionnée dans le prompt
         import re
+
+        # Pre-check: Determine context to avoid false positives
+        is_stent_context = 'stent' in prompt_lower
+        is_honeycomb_context = 'honeycomb' in prompt_lower
+        is_architecture_context = 'architecture' in prompt_lower or 'facade' in prompt_lower or 'building' in prompt_lower
+
         for shape, requirements in shape_requirements.items():
             # Use word boundaries to avoid false matches (e.g., "arc" in "architecture", "ring" in "rings")
             # Special cases:
-            # - For stent: Check if prompt contains "stent" and skip ring/washer check
-            # - For honeycomb: Check if prompt contains "honeycomb" and skip arc check
-            if shape == 'ring' or shape == 'washer' or shape == 'annulus':
-                # Skip ring/washer check if prompt is about stents
-                if 'stent' in prompt_lower:
+            # - For stent: Skip ring/washer/annulus checks (stents have "rings" but aren't simple washers)
+            # - For honeycomb: Skip arc checks (honeycomb panels aren't arcs)
+            # - For architecture: Skip arc checks (architectural terms aren't arcs)
+            if shape in ['ring', 'washer', 'annulus']:
+                # Skip ring/washer/annulus check if prompt is about stents
+                if is_stent_context:
                     continue
 
             if shape == 'arc':
                 # Skip arc check if prompt is about honeycomb or architecture
-                if 'honeycomb' in prompt_lower or 'architecture' in prompt_lower:
+                if is_honeycomb_context or is_architecture_context:
                     continue
 
             # Use word boundary matching to avoid false positives
