@@ -3409,8 +3409,11 @@ class CriticAgent:
         """
         prompt_lower = prompt.lower()
 
-        # Check if prompt asks for arc
-        if "arc" not in prompt_lower and "annular" not in prompt_lower and "sector" not in prompt_lower:
+        # Check if prompt asks for arc (use word boundaries to avoid matching "arc" in "architecture")
+        import re
+        if not (re.search(r'\barc\b', prompt_lower) or
+                re.search(r'\bannular\b', prompt_lower) or
+                re.search(r'\bsector\b', prompt_lower)):
             return None
 
         # Arc = annular sector (portion de couronne)
