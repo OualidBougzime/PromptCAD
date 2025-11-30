@@ -948,20 +948,22 @@ async function generateCAD() {
                     }
                     else if (data.type === 'complete') {
                         if (data.success) {
-                            updateProgress(100, 'Complete!');
+                            const timeMsg = data.execution_time ? ` (⏱️ ${data.execution_time}s)` : '';
+                            updateProgress(100, `Complete!${timeMsg}`);
 
                             if (data.code) currentCode = data.code;
                             if (data.mesh) loadMesh(data.mesh);
                             if (data.analysis) displayAnalysis(data.analysis);
                             if (data.parameters) displayParameters(data.parameters);
 
-                            console.log('âœ… Generation successful!');
+                            console.log(`âœ… Generation successful!${timeMsg}`);
                         } else {
                             throw new Error(data.errors?.join(', ') || 'Generation failed');
                         }
                     }
                     else if (data.type === 'error') {
-                        throw new Error(data.errors?.join(', ') || 'Unknown error');
+                        const timeMsg = data.execution_time ? ` (⏱️ ${data.execution_time}s)` : '';
+                        throw new Error(data.errors?.join(', ') || 'Unknown error' + timeMsg);
                     }
 
                 } catch (parseError) {
