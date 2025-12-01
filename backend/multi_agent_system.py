@@ -175,7 +175,8 @@ class OrchestratorAgent:
         # Known types supported by templates
         self.known_types = {
             "splint", "stent", "lattice", "heatsink",
-            "honeycomb", "gripper", "facade_pyramid", "facade_parametric"
+            "honeycomb", "gripper", "facade_pyramid", "facade_parametric",
+            "louvre_wall", "sine_wave_fins"
         }
 
         log.info("🎯 OrchestratorAgent initialized (13 agents: 3 base + 7 multi-agent + 3 CoT)")
