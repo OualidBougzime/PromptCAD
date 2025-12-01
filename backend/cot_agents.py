@@ -385,10 +385,10 @@ class ArchitectAgent:
                 raise je
 
             return DesignAnalysis(
-                description=data.get("object", data.get("description", "Unknown shape")),
+                description=data.get("description", "Unknown shape"),
                 primitives_needed=data.get("primitives_needed", []),
-                operations_sequence=data.get("operations", data.get("operations_sequence", [])),
-                parameters=data.get("params", data.get("parameters", {})),
+                operations_sequence=data.get("operations_sequence", []),
+                parameters=data.get("parameters", {}),
                 complexity=data.get("complexity", "medium"),
                 reasoning=data.get("reasoning", "")
             )
