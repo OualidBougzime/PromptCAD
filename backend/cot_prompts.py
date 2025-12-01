@@ -577,7 +577,7 @@ result=result.edges('>Z').fillet(1)""",
 result=cq.Workplane('XY').circle(1.5).sweep(path, isFrenet=True)""",
 
     "bowl": """result=cq.Workplane('XY').sphere(40)
-result=result.faces('>Z').workplane().split(keepTop=True, keepBottom=False)
+result=result.faces('>Z').workplane().split(keepTop=False, keepBottom=True)
 result=result.shell(-3)
 result=result.faces('<Z').workplane().circle(37).extrude(3)
 result=result.edges('>Z').fillet(1)""",
